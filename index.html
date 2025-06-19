@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>罗密欧 婚恋介绍网</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    .user-card-photo {
+      aspect-ratio: 9/16;
+      object-fit: cover;
+    }
+    body {
+      background-color: #0f172a;
+    }
+    .modal-bg {
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: none;
+    }
+    .container-safe {
+      max-width: 1400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    @media (max-width: 1024px) {
+      .card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .search-input {
+        width: 100%;
+      }
+    }
+    @media (max-width: 640px) {
+      .card-grid {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+      }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .search-wrapper {
+        width: 100%;
+        flex-direction: column;
+      }
+      .search-input {
+        width: 100%;
+        border-radius: 0.375rem;
+      }
+      .search-button {
+        width: 100%;
+        border-radius: 0.375rem;
+        margin-top: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body class="text-white relative">
+  <!-- 卡密输入弹窗 + 遮罩 -->
+  <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+    <div class="bg-white text-black p-6 rounded shadow w-80 text-center z-60">
+      <h2 class="mb-4">请输入卡密</h2>
+      <input id="cardKey" class="w-full border p-2 mb-4" placeholder="输入卡密" />
+      <button onclick="verifyKey()" class="w-full bg-gray-800 text-white py-2 rounded">确定</button>
+    </div>
+  </div>
+
+  <div id="mainContent" style="display:block;">
+    <div class="container-safe px-6 py-6">
+      <!-- 顶部栏 -->
+      <div class="flex justify-between items-center mb-6 topbar">
+        <div class="text-xl font-bold">🧿 罗密欧 婚恋介绍网</div>
+        <div class="flex search-wrapper">
+          <input id="searchInput" class="search-input p-2 rounded-l bg-gray-700 text-white placeholder-gray-400 w-[850px] max-w-full" placeholder="搜索地区、精确到市" />
+          <button id="searchBtn" class="bg-blue-600 text-white px-4 rounded-r hover:bg-blue-500 search-button">搜索</button>
+        </div>
+      </div>
+
+      <!-- 卡片区 -->
+      <div id="cardContainer" class="card-grid mb-8"></div>
+
+      <!-- 分页器 -->
+      <div class="flex justify-center items-center space-x-2 mt-6">
+        <button id="prevBtn" class="bg-gray-700 px-4 py-1 rounded hover:bg-gray-600">上一页</button>
+        <div id="pageNumbers" class="flex space-x-2"></div>
+        <button id="nextBtn" class="bg-gray-700 px-4 py-1 rounded hover:bg-gray-600">下一页</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let users = [];
+    let filteredUsers = [];
+    const pageSize = 8;
+    let currentPage = 1;
+
+    function renderCards() {
+      const container = document.getElementById('cardContainer');
+      container.innerHTML = '';
+      const start = (currentPage - 1) * pageSize;
+      const pageData = filteredUsers.slice(start, start + pageSize);
+
+      if (pageData.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-400 w-full col-span-4">暂无内容</p>';
+        return;
+      }
+
+      for (const user of pageData) {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-800 rounded overflow-hidden shadow hover:shadow-lg cursor-pointer';
+        card.onclick = () => {
+          sessionStorage.setItem('selectedUser', JSON.stringify(user));
+          location.href = 'detail.html';
+        };
+        card.innerHTML = `
+          <div class="user-card-photo w-full overflow-hidden"><img src="/${user.images && user.images[0] ? user.images[0].replace(/^\/*/, '') : ''}" class="w-full h-full object-cover"></div>
+          <div class="p-4">
+            <div class="text-base font-semibold">${user.name || user.number} <span class="text-blue-400 text-sm">${user.number}</span></div>
+            <div class="text-sm text-gray-400 mt-1">${user.city || ''} / ${user.age || ''}岁 / ${user.profession || user.job || ''}</div>
+            <div class="text-xs text-gray-500 mt-1">${user.views || Math.floor(Math.random()*500)} 次浏览</div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+    }
+
+    function renderPagination() {
+      const totalPages = Math.ceil(filteredUsers.length / pageSize);
+      const pageContainer = document.getElementById('pageNumbers');
+      pageContainer.innerHTML = '';
+      const maxPages = 5;
+      for (let i = 1; i <= totalPages && i <= maxPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = `px-3 py-1 rounded ${i === currentPage ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`;
+        btn.onclick = () => {
+          currentPage = i;
+          renderCards();
+          renderPagination();
+        };
+        pageContainer.appendChild(btn);
+      }
+    }
+
+    document.getElementById('prevBtn').onclick = () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderCards();
+        renderPagination();
+      }
+    };
+    document.getElementById('nextBtn').onclick = () => {
+      currentPage++;
+      renderCards();
+      renderPagination();
+    };
+
+    function doSearch() {
+      const kw = document.getElementById('searchInput').value.trim();
+      currentPage = 1;
+      filteredUsers = users.filter(u => (u.city || '').includes(kw));
+      renderCards();
+      renderPagination();
+    }
+
+    document.getElementById('searchInput').addEventListener('input', doSearch);
+    document.getElementById('searchBtn').addEventListener('click', doSearch);
+
+    function verifyKey() {
+      const key = document.getElementById('cardKey').value.trim();
+      if (key) {
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        renderCards();
+        renderPagination();
+        localStorage.setItem('cardKeyVerified', 'true');
+      } else {
+        alert("请输入有效卡密");
+      }
+    }
+
+    if (localStorage.getItem('cardKeyVerified') === 'true') {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    // 通过 API 获取用户数据
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => {
+        users = Array.isArray(data) ? data : (data.users || []);
+        filteredUsers = [...users];
+        console.log('用户数据:', users); // 调试用
+        renderCards();
+        renderPagination();
+      });
+  </script>
+</body>
+</html>
